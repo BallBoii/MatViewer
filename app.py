@@ -35,10 +35,10 @@ INTERPOLATION_METHODS = ["none", "best", "fast"]
 
 # ─── CSS ──────────────────────────────────────────────────────────────────────
 def local_css() -> None:
-    """Inject custom CSS to achieve a deep-dark / cyberpunk aesthetic."""
+    """Inject custom CSS for a minimal dark aesthetic."""
     st.markdown(
         f"""<style>
-        /* remove red header */
+        /* remove default header chrome */
         header[data-testid="stHeader"] {{ background: transparent !important; }}
 
         .stApp, [data-testid="stAppViewContainer"] {{
@@ -49,37 +49,62 @@ def local_css() -> None:
         section[data-testid="stSidebar"] {{ background: {BG_CARD} !important; }}
         section[data-testid="stSidebar"] * {{ color: {TEXT} !important; }}
 
-        /* expander headers */
-        details summary span {{ font-size: 0.85rem !important; }}
+        /* expander: tighter, no emoji needed */
+        details summary {{ padding: 0.4rem 0 !important; }}
+        details summary span {{ font-size: 0.82rem !important; letter-spacing: 0.02em; }}
 
         /* file uploader */
         [data-testid="stFileUploader"] {{
             border: 1.5px dashed {BORDER} !important;
-            border-radius: 8px; padding: 0.5rem;
+            border-radius: 8px; padding: 0.4rem;
         }}
-        [data-testid="stFileUploader"]:hover {{
-            border-color: {ACCENT} !important;
-        }}
+        [data-testid="stFileUploader"]:hover {{ border-color: {ACCENT} !important; }}
 
-        /* compact stat pill */
-        .stat-row {{
-            display: flex; gap: 0.6rem; flex-wrap: wrap;
+        /* ── info table ── */
+        .info-table {{
+            width: 100%; border-collapse: collapse;
+            font-family: 'Consolas', monospace;
+            font-size: 0.78rem;
             margin-bottom: 0.5rem;
         }}
-        .stat-pill {{
-            background: {BG_CARD}; border: 1px solid {BORDER};
-            border-radius: 6px; padding: 0.35rem 0.75rem;
-            font-size: 0.78rem; font-family: 'Consolas', monospace;
+        .info-table th {{
+            text-align: left;
+            color: {TEXT_DIM};
+            font-weight: 400;
+            font-size: 0.62rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            padding: 0.35rem 0.7rem 0.2rem;
+            border-bottom: 1px solid {BORDER};
         }}
-        .stat-pill b {{ color: {ACCENT}; margin-right: 0.4rem; }}
-        .stat-pill span {{ color: {TEXT_DIM}; }}
+        .info-table td {{
+            color: {TEXT};
+            padding: 0.4rem 0.7rem;
+            border-bottom: 1px solid rgba(48,54,61,0.4);
+        }}
+        .info-table tr:last-child td {{ border-bottom: none; }}
+        .info-section {{
+            background: {BG_CARD};
+            border: 1px solid {BORDER};
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 0.5rem;
+        }}
+        .info-section-title {{
+            color: {TEXT_DIM};
+            font-size: 0.6rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            padding: 0.5rem 0.7rem 0;
+            font-family: 'Segoe UI', sans-serif;
+        }}
 
-        /* title */
+        /* sidebar title */
         .app-title {{
             font-family: 'Segoe UI', Consolas, monospace;
-            font-weight: 700; font-size: 1.1rem;
-            background: linear-gradient(90deg, {ACCENT}, {ACCENT2});
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            font-weight: 600; font-size: 1rem; letter-spacing: 0.03em;
+            color: {TEXT} !important;
         }}
 
         /* landing */
@@ -89,14 +114,14 @@ def local_css() -> None:
             height: 65vh; text-align: center;
         }}
         .landing h1 {{
-            font-size: 2.8rem; margin-bottom: 0.3rem;
-            background: linear-gradient(90deg, {ACCENT}, {ACCENT2});
+            font-size: 2.4rem; font-weight: 600; margin-bottom: 0.4rem;
+            background: linear-gradient(135deg, {ACCENT}, {ACCENT2});
             -webkit-background-clip: text; -webkit-text-fill-color: transparent;
         }}
-        .landing p {{ color: {TEXT_DIM}; max-width: 440px; font-size: 1rem; }}
+        .landing p {{ color: {TEXT_DIM}; max-width: 400px; font-size: 0.95rem; line-height: 1.6; }}
 
         /* scrollbar */
-        ::-webkit-scrollbar {{ width: 6px; }}
+        ::-webkit-scrollbar {{ width: 5px; }}
         ::-webkit-scrollbar-track {{ background: {BG_PRIMARY}; }}
         ::-webkit-scrollbar-thumb {{ background: {BORDER}; border-radius: 3px; }}
         </style>""",
@@ -214,7 +239,7 @@ def build_figure(
 def sidebar_controls():
     """Render all sidebar widgets, return a dict of settings."""
     with st.sidebar:
-        st.markdown('<div class="app-title">🔬 MatViewer</div>', unsafe_allow_html=True)
+        st.markdown('<div class="app-title">MatViewer</div>', unsafe_allow_html=True)
         st.caption("Scientific Image Gallery")
 
         # ── File Upload ──────────────────────────────────────────────
@@ -251,54 +276,55 @@ def sidebar_controls():
         #  Adjustment panels — matplotlib-equivalent controls
         # ══════════════════════════════════════════════════════════════
 
-        # ── 🎨 Colormap ──────────────────────────────────────────────
-        with st.expander("🎨 Colormap", expanded=True):
+        # ── Colormap ──────────────────────────────────────────────
+        with st.expander("Colormap", expanded=True):
             cmap = st.selectbox("Scale", COLOR_SCALES, index=0,
                                 label_visibility="collapsed")
-            reverse = st.toggle("Reverse colormap", value=False)
+            reverse = st.toggle("Reverse", value=False)
             contrast = st.slider("Contrast", 0.0, 1.0, (0.0, 1.0), 0.01,
-                                 help="Map to data range as vmin/vmax.")
+                                 help="Map to data range as vmin / vmax.")
 
-        # ── 📐 Transform ─────────────────────────────────────────────
-        with st.expander("📐 Transform"):
+        # ── Transform ─────────────────────────────────────────────
+        with st.expander("Transform"):
             col_a, col_b = st.columns(2)
             flip_h = col_a.toggle("Flip H", value=False)
             flip_v = col_b.toggle("Flip V", value=False)
             rotate = st.select_slider("Rotate", options=[0, 90, 180, 270],
                                       value=0, format_func=lambda x: f"{x}°")
-            aspect = st.radio("Aspect", ["equal", "auto"], horizontal=True,
-                              index=0)
-            origin = st.radio("Origin", ["upper", "lower"], horizontal=True,
-                              index=0, help="'upper' = row 0 at top (image-style).")
+            c1, c2 = st.columns(2)
+            aspect = c1.radio("Aspect", ["equal", "auto"], index=0)
+            origin = c2.radio("Origin", ["upper", "lower"], index=0,
+                              help="Row 0 position.")
 
-        # ── ✨ Smoothing ─────────────────────────────────────────────
-        with st.expander("✨ Smoothing"):
+        # ── Interpolation ─────────────────────────────────────────
+        with st.expander("Interpolation"):
             smoothing = st.radio(
-                "Interpolation",
+                "Method",
                 INTERPOLATION_METHODS,
                 index=0,
                 horizontal=True,
-                help="Plotly zsmooth: none, best, or fast.",
+                label_visibility="collapsed",
             )
 
-        # ── 🏷 Labels ────────────────────────────────────────────────
-        with st.expander("🏷 Labels"):
+        # ── Labels ────────────────────────────────────────────────
+        with st.expander("Labels"):
             title_text = st.text_input("Title", placeholder="(none)")
             lc1, lc2 = st.columns(2)
-            xlabel = lc1.text_input("X label", placeholder="X")
-            ylabel = lc2.text_input("Y label", placeholder="Y")
-            cbar_label = st.text_input("Colorbar label", placeholder="Intensity")
+            xlabel = lc1.text_input("X", placeholder="X")
+            ylabel = lc2.text_input("Y", placeholder="Y")
+            cbar_label = st.text_input("Colorbar", placeholder="Intensity")
 
-        # ── 🔲 Axes & Grid ───────────────────────────────────────────
-        with st.expander("🔲 Axes & Grid"):
-            show_axis = st.toggle("Show axes", value=True)
-            show_colorbar = st.toggle("Show colorbar", value=True)
-            show_grid = st.toggle("Grid overlay", value=False)
-            grid_opacity = st.slider("Grid opacity", 0.05, 0.5, 0.15, 0.05,
+        # ── Axes & Grid ───────────────────────────────────────────
+        with st.expander("Axes / Grid"):
+            ga, gb = st.columns(2)
+            show_axis = ga.toggle("Axes", value=True)
+            show_colorbar = gb.toggle("Colorbar", value=True)
+            show_grid = st.toggle("Grid", value=False)
+            grid_opacity = st.slider("Opacity", 0.05, 0.5, 0.15, 0.05,
                                      disabled=not show_grid)
 
-        # ── 🔍 Crop ROI ──────────────────────────────────────────────
-        with st.expander("🔍 Crop (ROI)"):
+        # ── Crop ──────────────────────────────────────────────────
+        with st.expander("Crop"):
             h, w = data.shape[0], data.shape[1]
             x_range = st.slider("X range", 0, w - 1, (0, w - 1))
             y_range = st.slider("Y range", 0, h - 1, (0, h - 1))
@@ -343,7 +369,7 @@ def sidebar_controls():
 def main() -> None:
     st.set_page_config(
         page_title="MatViewer",
-        page_icon="🔬",
+        page_icon=None,
         layout="wide",
         initial_sidebar_state="expanded",
     )
@@ -355,9 +381,9 @@ def main() -> None:
     if cfg["raw"] is None:
         st.markdown(
             """<div class="landing">
-                <h1>🔬 MatViewer</h1>
-                <p>Upload a <code>.mat</code> file from the sidebar to begin
-                exploring 3-D datasets interactively.</p>
+                <h1>MatViewer</h1>
+                <p>Upload a <code>.mat</code> file from the sidebar
+                to explore 3-D datasets interactively.</p>
             </div>""",
             unsafe_allow_html=True,
         )
@@ -374,17 +400,8 @@ def main() -> None:
     gmax: float = cfg["gmax"]
     cmin, cmax = cfg["contrast"]
 
-    # ── Stat bar ─────────────────────────────────────────────────────
-    st.markdown(
-        f"""<div class="stat-row">
-            <div class="stat-pill"><b>var</b><span>{cfg["chosen"]}</span></div>
-            <div class="stat-pill"><b>shape</b><span>{data.shape[0]}×{data.shape[1]}×{data.shape[2]}</span></div>
-            <div class="stat-pill"><b>dtype</b><span>{data.dtype}</span></div>
-            <div class="stat-pill"><b>range</b><span>{gmin:.4g} — {gmax:.4g}</span></div>
-            <div class="stat-pill"><b>slice</b><span>{z_idx} / {data.shape[2] - 1}</span></div>
-        </div>""",
-        unsafe_allow_html=True,
-    )
+    # ── Info bar ─────────────────────────────────────────────────
+    # (moved below — layout: image → histogram → info)
 
     # ── Prepare slice ────────────────────────────────────────────────
     slice_2d = data[:, :, z_idx]
@@ -406,7 +423,7 @@ def main() -> None:
     vmin = gmin + cmin * (gmax - gmin)
     vmax = gmin + cmax * (gmax - gmin)
 
-    # ── Build & display ──────────────────────────────────────────────
+    # ━━ 1. IMAGE ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     fig = build_figure(
         slice_2d,
         colorscale=cfg["cmap"],
@@ -441,27 +458,83 @@ def main() -> None:
 
     st.plotly_chart(fig, use_container_width=True, config=plotly_cfg)
 
-    # ── Slice histogram (compact) ────────────────────────────────────
-    with st.expander("📊 Slice Histogram"):
-        hist_fig = px.histogram(
-            slice_2d.ravel(), nbins=128,
-            color_discrete_sequence=[ACCENT],
+    # ━━ 2. HISTOGRAM ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    flat = slice_2d.ravel()
+    s_min = float(np.nanmin(flat))
+    s_max = float(np.nanmax(flat))
+    s_mean = float(np.nanmean(flat))
+    s_std = float(np.nanstd(flat))
+    s_med = float(np.nanmedian(flat))
+    s_p1 = float(np.nanpercentile(flat, 1))
+    s_p99 = float(np.nanpercentile(flat, 99))
+    n_nan = int(np.count_nonzero(np.isnan(flat)))
+    n_px = int(flat.size)
+
+    hist_fig = px.histogram(
+        flat, nbins=128,
+        color_discrete_sequence=[ACCENT],
+    )
+    hist_fig.update_layout(
+        paper_bgcolor=BG_PRIMARY,
+        plot_bgcolor=BG_PRIMARY,
+        font_color=TEXT_DIM,
+        height=200,
+        margin=dict(l=40, r=10, t=10, b=35),
+        showlegend=False,
+        xaxis_title="Pixel value",
+        yaxis_title="Count",
+    )
+    for v, color, label in [
+        (vmin, ACCENT, "vmin"),
+        (vmax, ACCENT2, "vmax"),
+        (s_mean, "#FFD866", "mean"),
+        (s_med, "#A9DC76", "median"),
+    ]:
+        hist_fig.add_vline(
+            x=v, line_dash="dash", line_color=color, line_width=1.2,
+            annotation_text=label,
+            annotation_font_color=color,
+            annotation_font_size=10,
         )
-        hist_fig.update_layout(
-            paper_bgcolor=BG_PRIMARY,
-            plot_bgcolor=BG_PRIMARY,
-            font_color=TEXT_DIM,
-            height=180,
-            margin=dict(l=30, r=10, t=10, b=30),
-            showlegend=False,
-            xaxis_title="Pixel value",
-            yaxis_title="Count",
+    st.plotly_chart(hist_fig, use_container_width=True)
+
+    # ━━ 3. INFO + STATS ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    col_l, col_r = st.columns(2)
+
+    with col_l:
+        st.markdown(
+            f"""<div class="info-section">
+                <div class="info-section-title">Stack</div>
+                <table class="info-table">
+                    <tr><th>Property</th><th>Value</th></tr>
+                    <tr><td>Variable</td><td>{cfg["chosen"]}</td></tr>
+                    <tr><td>Shape</td><td>{data.shape[0]} × {data.shape[1]} × {data.shape[2]}</td></tr>
+                    <tr><td>Dtype</td><td>{data.dtype}</td></tr>
+                    <tr><td>Current slice</td><td>{z_idx} / {data.shape[2] - 1}</td></tr>
+                    <tr><td>Pixels</td><td>{n_px:,}</td></tr>
+                    <tr><td>NaN count</td><td>{n_nan}</td></tr>
+                </table>
+            </div>""",
+            unsafe_allow_html=True,
         )
-        # draw vmin/vmax lines
-        for v, color in [(vmin, ACCENT), (vmax, ACCENT2)]:
-            hist_fig.add_vline(x=v, line_dash="dash", line_color=color,
-                               line_width=1.5)
-        st.plotly_chart(hist_fig, use_container_width=True)
+
+    with col_r:
+        st.markdown(
+            f"""<div class="info-section">
+                <div class="info-section-title">Slice Statistics</div>
+                <table class="info-table">
+                    <tr><th>Metric</th><th>Value</th></tr>
+                    <tr><td>Min</td><td>{s_min:.6g}</td></tr>
+                    <tr><td>Max</td><td>{s_max:.6g}</td></tr>
+                    <tr><td>Mean</td><td>{s_mean:.6g}</td></tr>
+                    <tr><td>Std Dev</td><td>{s_std:.6g}</td></tr>
+                    <tr><td>Median</td><td>{s_med:.6g}</td></tr>
+                    <tr><td>P1</td><td>{s_p1:.6g}</td></tr>
+                    <tr><td>P99</td><td>{s_p99:.6g}</td></tr>
+                </table>
+            </div>""",
+            unsafe_allow_html=True,
+        )
 
 
 if __name__ == "__main__":
