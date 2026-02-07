@@ -367,9 +367,14 @@ def sidebar_controls():
 
 # ─── Main ─────────────────────────────────────────────────────────────────────
 def main() -> None:
+    # Try to use logo as page icon
+    from pathlib import Path
+    logo_path = Path("public/logo.png")
+    page_icon = str(logo_path) if logo_path.exists() else None
+    
     st.set_page_config(
         page_title="MatViewer",
-        page_icon=None,
+        page_icon=page_icon,
         layout="wide",
         initial_sidebar_state="expanded",
     )
