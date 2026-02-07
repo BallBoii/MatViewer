@@ -281,8 +281,27 @@ def sidebar_controls():
             cmap = st.selectbox("Scale", COLOR_SCALES, index=0,
                                 label_visibility="collapsed")
             reverse = st.toggle("Reverse", value=False)
-            contrast = st.slider("Contrast", 0.0, 1.0, (0.0, 1.0), 0.01,
-                                 help="Map to data range as vmin / vmax.")
+            
+            # Contrast mode: Auto (slider) vs Manual (type values)
+            use_manual = st.toggle("Manual vmin/vmax", value=False,
+                                   help="Switch between slider (auto) and manual input.")
+            
+            if use_manual:
+                col_min, col_max = st.columns(2)
+                manual_vmin = col_min.number_input(
+                    "vmin", value=float(gmin), format="%.6g",
+                    help="Minimum display value"
+                )
+                manual_vmax = col_max.number_input(
+                    "vmax", value=float(gmax), format="%.6g",
+                    help="Maximum display value"
+                )
+                contrast = None
+            else:
+                contrast = st.slider("Contrast", 0.0, 1.0, (0.0, 1.0), 0.01,
+                                     help="Map to data range as vmin / vmax.")
+                manual_vmin = None
+                manual_vmax = None
 
         # ── Transform ─────────────────────────────────────────────
         with st.expander("Transform"):
@@ -341,6 +360,8 @@ def sidebar_controls():
             "cmap": cmap,
             "reverse": reverse,
             "contrast": contrast,
+            "manual_vmin": manual_vmin,
+            "manual_vmax": manual_vmax,
             # transform
             "flip_h": flip_h,
             "flip_v": flip_v,
@@ -403,7 +424,15 @@ def main() -> None:
     z_idx: int = cfg["z_idx"]
     gmin: float = cfg["gmin"]
     gmax: float = cfg["gmax"]
-    cmin, cmax = cfg["contrast"]
+    
+    # Handle contrast: manual or slider mode
+    if cfg["manual_vmin"] is not None and cfg["manual_vmax"] is not None:
+        vmin_input = cfg["manual_vmin"]
+        vmax_input = cfg["manual_vmax"]
+    else:
+        cmin, cmax = cfg["contrast"]
+        vmin_input = gmin + cmin * (gmax - gmin)
+        vmax_input = gmin + cmax * (gmax - gmin)
 
     # ── Info bar ─────────────────────────────────────────────────
     # (moved below — layout: image → histogram → info)
@@ -424,9 +453,9 @@ def main() -> None:
         rotate=cfg["rotate"],
     )
 
-    # contrast
-    vmin = gmin + cmin * (gmax - gmin)
-    vmax = gmin + cmax * (gmax - gmin)
+    # apply vmin/vmax from earlier calculation
+    vmin = vmin_input
+    vmax = vmax_input
 
     # ━━ 1. IMAGE ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     fig = build_figure(
